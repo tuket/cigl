@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
-project(example)
+project(cigl LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 14)
 
 list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
@@ -15,7 +16,7 @@ igl_include(glfw)
 #igl_include(stb)
 #igl_include(predicates)
 #igl_include(xml)
-#igl_include(copyleft cgal)
+igl_include(copyleft cgal)
 #igl_include(copyleft comiso)
 #igl_include(copyleft core)
 #igl_include(copyleft cork)
@@ -25,12 +26,11 @@ igl_include(glfw)
 #igl_include(restricted triangle)
 
 # Add your project files
-file(GLOB SRC_FILES *.cpp)
-add_executable(${PROJECT_NAME} ${SRC_FILES})
+add_library(cigl SHARED cigl.h cigl.cpp)
 
 # Link igl (and the glfw module) to your project
-target_link_libraries(${PROJECT_NAME} PUBLIC 
-  igl::glfw
+target_link_libraries(cigl PUBLIC 
+  #igl::glfw
   ## Other modules you could link to
   # igl::embree
   # igl::imgui
@@ -38,7 +38,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   # igl::stb
   # igl::predicates
   # igl::xml
-  # igl_copyleft::cgal
+  igl_copyleft::cgal
   # igl_copyleft::comiso
   # igl_copyleft::core
   # igl_copyleft::cork
@@ -46,4 +46,11 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   # igl_restricted::matlab
   # igl_restricted::mosek
   # igl_restricted::triangle
-  )
+)
+
+igl_copy_dll(cigl)
+
+add_executable(example example.cpp)
+target_link_libraries(example cigl igl::glfw)
+set_property(TARGET example PROPERTY CXX_STANDARD 20)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT example)
