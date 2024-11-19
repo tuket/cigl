@@ -26,6 +26,7 @@ struct cigl_OutputMesh {
     uint32_t numVertices;
     uint32_t numTriangles;
     float* vertices;
+    float* normals;
     uint32_t* indices;
 };
 
@@ -33,4 +34,4 @@ CIGL_API cigl_OutputMesh cigl_substract_mesh_cylinders(cigl_InputMesh inMesh, ui
 //void add_mesh_mesh(float* meshA_positions, uint32_t* meshA_indices, float* meshB_positions, uint32_t* meshB_inidices);
 
 
-//CIGL_API void cigl_release_output_mesh(cigl_OutputMesh mesh);
+CIGL_API void cigl_release_output_mesh(cigl_OutputMesh mesh);

@@ -3,12 +3,13 @@
 #include <algorithm>
 #include <stdio.h>
 #include <igl/copyleft/cgal/mesh_boolean.h>
+#include <igl/per_vertex_normals.h>
 
 typedef uint32_t u32;
 typedef Eigen::Vector3f Vec3;
 
 constexpr float PI = 3.14159265f;
-constexpr u32 cylinderResolution = 16;
+constexpr u32 cylinderResolution = 32;
 
 
 template <typename TF, typename TI>
@@ -84,6 +85,7 @@ CIGL_API cigl_OutputMesh cigl_substract_mesh_cylinders(cigl_InputMesh inMesh, ui
 		for (int j = 0; j < 3; j++)
             tris(i, j) = inMesh.indices[3 * i + j];
 	}
+    igl::writeOBJ("input.obj", verts, tris);
 
     Eigen::MatrixXf cylinderVertices;
     Eigen::MatrixXi cylinderTriangles;
@@ -92,29 +94,44 @@ CIGL_API cigl_OutputMesh cigl_substract_mesh_cylinders(cigl_InputMesh inMesh, ui
     Eigen::VectorXi J;
     for (u32 cylinderI = 0; cylinderI < numCylinders; cylinderI++) {
         const auto& cylinderInfo = cylinderInfos[cylinderI];
-        Vec3 basisX = { 1, 0, 0 };
-        Vec3 basisY = { 0, 1, 0 };
-        Vec3 basisZ = { 0, 0, 1 };
+        const Vec3 basisY(cylinderInfo.dirX, cylinderInfo.dirY, cylinderInfo.dirZ);
+        const Vec3 basisX = basisY.cross(fabs(basisY.z()) > 0.1 ? Vec3(0, 0, 1) : Vec3(1, 0, 0)).normalized();
+        const Vec3 basisZ = basisX.cross(basisY);
+
         makeCylinder(cylinderVertices, cylinderTriangles,
             { cylinderInfo.posX, cylinderInfo.posY, cylinderInfo.posZ },
             basisX, basisY, basisZ,
             cylinderInfo.radius, cylinderInfo.halfHeight,
             cylinderResolution
         );
+        
+        char fileName[64];
+        snprintf(fileName, std::size(fileName), "cylinder_%d.obj", cylinderI);
+        igl::writeOBJ(fileName, cylinderVertices, cylinderTriangles);
+
         igl::copyleft::cgal::mesh_boolean(
             verts, tris,
             cylinderVertices, cylinderTriangles,
             igl::MeshBooleanType(igl::MESH_BOOLEAN_TYPE_MINUS),
             resultVerts, resultTris, J);
-            std::swap(verts, resultVerts);
-            std::swap(tris, resultTris
-        );
+
+        std::swap(verts, resultVerts);
+        std::swap(tris, resultTris);
     }
+
+    Eigen::MatrixXf normals;
+    igl::per_vertex_normals(verts, tris, normals);
     
     float* verticesData = new float[3 * verts.rows()];
     for (int i = 0; i < verts.rows(); i++) {
         for (int dimI = 0; dimI < 3; dimI++)
             verticesData[3 * i + dimI] = float(verts(i, dimI));
+    }
+
+    float* normalsData = new float[3 * normals.rows()];
+    for (int i = 0; i < normals.rows(); i++) {
+        for (int dimI = 0; dimI < 3; dimI++)
+            normalsData[3 * i + dimI] = float(normals(i, dimI));
     }
 
     u32* indicesData = new u32[3 * tris.rows()];
@@ -123,11 +140,21 @@ CIGL_API cigl_OutputMesh cigl_substract_mesh_cylinders(cigl_InputMesh inMesh, ui
             indicesData[3 * i + j] = u32(tris(i, j));
     }
 
+    igl::writeOBJ("output.obj", verts, tris);
+
     return cigl_OutputMesh {
         u32(verts.rows()),
         u32(tris.rows()),
         verticesData,
+        normalsData,
         indicesData,
     };
     return {};
+}
+
+CIGL_API void cigl_release_output_mesh(cigl_OutputMesh mesh)
+{
+    delete[] mesh.vertices;
+    delete[] mesh.normals;
+    delete[] mesh.indices;
 }
